@@ -1,0 +1,788 @@
+{
+  "version": "3.2",
+  "description": "四足机器狗能量测试管理平台 - 信号配置（设备分组写法）。devices 下每个设备一个 api、一个 device_name，信号的 api/device_name 不再重复书写；程序加载时下放为列。每条信号只保留 id（必填唯一）、enabled（null=待定 / true=启用 / false=停用）、ch（UT3200 通道号）与展示列 name/unit/min/max/fmt。",
+  "devices": [
+    {
+      "device_name": "四足机器狗",
+      "api": "udp.parse_frame",
+      "signals": [
+        {
+          "id": "fl_hip_winding_temp",
+          "enabled": null,
+          "name": "左前腿髋关节绕组温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fl_hip_casing_temp",
+          "enabled": null,
+          "name": "左前腿髋关节壳体温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fl_hip_current",
+          "enabled": null,
+          "name": "左前腿髋关节电流",
+          "unit": "A",
+          "min": 0,
+          "max": 50,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "fl_hip_voltage",
+          "enabled": null,
+          "name": "左前腿髋关节电压",
+          "unit": "V",
+          "min": 0,
+          "max": 60,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "fl_hip_power",
+          "enabled": null,
+          "name": "左前腿髋关节功率",
+          "unit": "W",
+          "min": 0,
+          "max": 3000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fl_hip_energy",
+          "enabled": null,
+          "name": "左前腿髋关节累计能耗",
+          "unit": "Wh",
+          "min": 0,
+          "max": 100000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fl_thigh_winding_temp",
+          "enabled": null,
+          "name": "左前腿大腿关节绕组温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fl_thigh_casing_temp",
+          "enabled": null,
+          "name": "左前腿大腿关节壳体温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fl_thigh_current",
+          "enabled": null,
+          "name": "左前腿大腿关节电流",
+          "unit": "A",
+          "min": 0,
+          "max": 50,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "fl_thigh_voltage",
+          "enabled": null,
+          "name": "左前腿大腿关节电压",
+          "unit": "V",
+          "min": 0,
+          "max": 60,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "fl_thigh_power",
+          "enabled": null,
+          "name": "左前腿大腿关节功率",
+          "unit": "W",
+          "min": 0,
+          "max": 3000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fl_thigh_energy",
+          "enabled": null,
+          "name": "左前腿大腿关节累计能耗",
+          "unit": "Wh",
+          "min": 0,
+          "max": 100000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fl_knee_winding_temp",
+          "enabled": null,
+          "name": "左前腿膝关节绕组温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fl_knee_casing_temp",
+          "enabled": null,
+          "name": "左前腿膝关节壳体温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fl_knee_current",
+          "enabled": null,
+          "name": "左前腿膝关节电流",
+          "unit": "A",
+          "min": 0,
+          "max": 50,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "fl_knee_voltage",
+          "enabled": null,
+          "name": "左前腿膝关节电压",
+          "unit": "V",
+          "min": 0,
+          "max": 60,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "fl_knee_power",
+          "enabled": null,
+          "name": "左前腿膝关节功率",
+          "unit": "W",
+          "min": 0,
+          "max": 3000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fl_knee_energy",
+          "enabled": null,
+          "name": "左前腿膝关节累计能耗",
+          "unit": "Wh",
+          "min": 0,
+          "max": 100000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fr_hip_winding_temp",
+          "enabled": null,
+          "name": "右前腿髋关节绕组温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fr_hip_casing_temp",
+          "enabled": null,
+          "name": "右前腿髋关节壳体温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fr_hip_current",
+          "enabled": null,
+          "name": "右前腿髋关节电流",
+          "unit": "A",
+          "min": 0,
+          "max": 50,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "fr_hip_voltage",
+          "enabled": null,
+          "name": "右前腿髋关节电压",
+          "unit": "V",
+          "min": 0,
+          "max": 60,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "fr_hip_power",
+          "enabled": null,
+          "name": "右前腿髋关节功率",
+          "unit": "W",
+          "min": 0,
+          "max": 3000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fr_hip_energy",
+          "enabled": null,
+          "name": "右前腿髋关节累计能耗",
+          "unit": "Wh",
+          "min": 0,
+          "max": 100000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fr_thigh_winding_temp",
+          "enabled": null,
+          "name": "右前腿大腿关节绕组温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fr_thigh_casing_temp",
+          "enabled": null,
+          "name": "右前腿大腿关节壳体温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fr_thigh_current",
+          "enabled": null,
+          "name": "右前腿大腿关节电流",
+          "unit": "A",
+          "min": 0,
+          "max": 50,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "fr_thigh_voltage",
+          "enabled": null,
+          "name": "右前腿大腿关节电压",
+          "unit": "V",
+          "min": 0,
+          "max": 60,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "fr_thigh_power",
+          "enabled": null,
+          "name": "右前腿大腿关节功率",
+          "unit": "W",
+          "min": 0,
+          "max": 3000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fr_thigh_energy",
+          "enabled": null,
+          "name": "右前腿大腿关节累计能耗",
+          "unit": "Wh",
+          "min": 0,
+          "max": 100000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fr_knee_winding_temp",
+          "enabled": null,
+          "name": "右前腿膝关节绕组温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fr_knee_casing_temp",
+          "enabled": null,
+          "name": "右前腿膝关节壳体温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fr_knee_current",
+          "enabled": null,
+          "name": "右前腿膝关节电流",
+          "unit": "A",
+          "min": 0,
+          "max": 50,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "fr_knee_voltage",
+          "enabled": null,
+          "name": "右前腿膝关节电压",
+          "unit": "V",
+          "min": 0,
+          "max": 60,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "fr_knee_power",
+          "enabled": null,
+          "name": "右前腿膝关节功率",
+          "unit": "W",
+          "min": 0,
+          "max": 3000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "fr_knee_energy",
+          "enabled": null,
+          "name": "右前腿膝关节累计能耗",
+          "unit": "Wh",
+          "min": 0,
+          "max": 100000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rl_hip_winding_temp",
+          "enabled": null,
+          "name": "左后腿髋关节绕组温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rl_hip_casing_temp",
+          "enabled": null,
+          "name": "左后腿髋关节壳体温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rl_hip_current",
+          "enabled": null,
+          "name": "左后腿髋关节电流",
+          "unit": "A",
+          "min": 0,
+          "max": 50,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "rl_hip_voltage",
+          "enabled": null,
+          "name": "左后腿髋关节电压",
+          "unit": "V",
+          "min": 0,
+          "max": 60,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "rl_hip_power",
+          "enabled": null,
+          "name": "左后腿髋关节功率",
+          "unit": "W",
+          "min": 0,
+          "max": 3000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rl_hip_energy",
+          "enabled": null,
+          "name": "左后腿髋关节累计能耗",
+          "unit": "Wh",
+          "min": 0,
+          "max": 100000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rl_thigh_winding_temp",
+          "enabled": null,
+          "name": "左后腿大腿关节绕组温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rl_thigh_casing_temp",
+          "enabled": null,
+          "name": "左后腿大腿关节壳体温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rl_thigh_current",
+          "enabled": null,
+          "name": "左后腿大腿关节电流",
+          "unit": "A",
+          "min": 0,
+          "max": 50,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "rl_thigh_voltage",
+          "enabled": null,
+          "name": "左后腿大腿关节电压",
+          "unit": "V",
+          "min": 0,
+          "max": 60,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "rl_thigh_power",
+          "enabled": null,
+          "name": "左后腿大腿关节功率",
+          "unit": "W",
+          "min": 0,
+          "max": 3000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rl_thigh_energy",
+          "enabled": null,
+          "name": "左后腿大腿关节累计能耗",
+          "unit": "Wh",
+          "min": 0,
+          "max": 100000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rl_knee_winding_temp",
+          "enabled": null,
+          "name": "左后腿膝关节绕组温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rl_knee_casing_temp",
+          "enabled": null,
+          "name": "左后腿膝关节壳体温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rl_knee_current",
+          "enabled": null,
+          "name": "左后腿膝关节电流",
+          "unit": "A",
+          "min": 0,
+          "max": 50,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "rl_knee_voltage",
+          "enabled": null,
+          "name": "左后腿膝关节电压",
+          "unit": "V",
+          "min": 0,
+          "max": 60,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "rl_knee_power",
+          "enabled": null,
+          "name": "左后腿膝关节功率",
+          "unit": "W",
+          "min": 0,
+          "max": 3000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rl_knee_energy",
+          "enabled": null,
+          "name": "左后腿膝关节累计能耗",
+          "unit": "Wh",
+          "min": 0,
+          "max": 100000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rr_hip_winding_temp",
+          "enabled": null,
+          "name": "右后腿髋关节绕组温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rr_hip_casing_temp",
+          "enabled": null,
+          "name": "右后腿髋关节壳体温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rr_hip_current",
+          "enabled": null,
+          "name": "右后腿髋关节电流",
+          "unit": "A",
+          "min": 0,
+          "max": 50,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "rr_hip_voltage",
+          "enabled": null,
+          "name": "右后腿髋关节电压",
+          "unit": "V",
+          "min": 0,
+          "max": 60,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "rr_hip_power",
+          "enabled": null,
+          "name": "右后腿髋关节功率",
+          "unit": "W",
+          "min": 0,
+          "max": 3000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rr_hip_energy",
+          "enabled": null,
+          "name": "右后腿髋关节累计能耗",
+          "unit": "Wh",
+          "min": 0,
+          "max": 100000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rr_thigh_winding_temp",
+          "enabled": null,
+          "name": "右后腿大腿关节绕组温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rr_thigh_casing_temp",
+          "enabled": null,
+          "name": "右后腿大腿关节壳体温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rr_thigh_current",
+          "enabled": null,
+          "name": "右后腿大腿关节电流",
+          "unit": "A",
+          "min": 0,
+          "max": 50,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "rr_thigh_voltage",
+          "enabled": null,
+          "name": "右后腿大腿关节电压",
+          "unit": "V",
+          "min": 0,
+          "max": 60,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "rr_thigh_power",
+          "enabled": null,
+          "name": "右后腿大腿关节功率",
+          "unit": "W",
+          "min": 0,
+          "max": 3000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rr_thigh_energy",
+          "enabled": null,
+          "name": "右后腿大腿关节累计能耗",
+          "unit": "Wh",
+          "min": 0,
+          "max": 100000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rr_knee_winding_temp",
+          "enabled": null,
+          "name": "右后腿膝关节绕组温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rr_knee_casing_temp",
+          "enabled": null,
+          "name": "右后腿膝关节壳体温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rr_knee_current",
+          "enabled": null,
+          "name": "右后腿膝关节电流",
+          "unit": "A",
+          "min": 0,
+          "max": 50,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "rr_knee_voltage",
+          "enabled": null,
+          "name": "右后腿膝关节电压",
+          "unit": "V",
+          "min": 0,
+          "max": 60,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "rr_knee_power",
+          "enabled": null,
+          "name": "右后腿膝关节功率",
+          "unit": "W",
+          "min": 0,
+          "max": 3000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "rr_knee_energy",
+          "enabled": null,
+          "name": "右后腿膝关节累计能耗",
+          "unit": "Wh",
+          "min": 0,
+          "max": 100000,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "battery_voltage",
+          "enabled": null,
+          "name": "电池电压",
+          "unit": "V",
+          "min": 0,
+          "max": 60,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "battery_current",
+          "enabled": null,
+          "name": "电池电流",
+          "unit": "A",
+          "min": -50,
+          "max": 50,
+          "fmt": "{:.2f}"
+        },
+        {
+          "id": "battery_temperature",
+          "enabled": null,
+          "name": "电池温度",
+          "unit": "°C",
+          "min": -20,
+          "max": 80,
+          "fmt": "{:.1f}"
+        }
+      ]
+    },
+    {
+      "device_name": "UT3200+ 多路温度测试仪",
+      "api": "ut3200.fetch_all",
+      "signals": [
+        {
+          "id": "ut3200_ch1",
+          "enabled": true,
+          "ch": 1,
+          "name": "UT3200+ 通道1 温度",
+          "unit": "°C",
+          "min": -200,
+          "max": 1800,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "ut3200_ch2",
+          "enabled": true,
+          "ch": 2,
+          "name": "UT3200+ 通道2 温度",
+          "unit": "°C",
+          "min": -200,
+          "max": 1800,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "ut3200_ch3",
+          "enabled": true,
+          "ch": 3,
+          "name": "UT3200+ 通道3 温度",
+          "unit": "°C",
+          "min": -200,
+          "max": 1800,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "ut3200_ch4",
+          "enabled": true,
+          "ch": 4,
+          "name": "UT3200+ 通道4 温度",
+          "unit": "°C",
+          "min": -200,
+          "max": 1800,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "ut3200_ch5",
+          "enabled": false,
+          "ch": 5,
+          "name": "UT3200+ 通道5 温度",
+          "unit": "°C",
+          "min": -200,
+          "max": 1800,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "ut3200_ch6",
+          "enabled": false,
+          "ch": 6,
+          "name": "UT3200+ 通道6 温度",
+          "unit": "°C",
+          "min": -200,
+          "max": 1800,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "ut3200_ch7",
+          "enabled": false,
+          "ch": 7,
+          "name": "UT3200+ 通道7 温度",
+          "unit": "°C",
+          "min": -200,
+          "max": 1800,
+          "fmt": "{:.1f}"
+        },
+        {
+          "id": "ut3200_ch8",
+          "enabled": false,
+          "ch": 8,
+          "name": "UT3200+ 通道8 温度",
+          "unit": "°C",
+          "min": -200,
+          "max": 1800,
+          "fmt": "{:.1f}"
+        }
+      ]
+    },
+    {
+      "device_name": "CAN 设备（预留）",
+      "api": "can.read_motor_temp",
+      "signals": [
+        {
+          "id": "can_motor_temp",
+          "enabled": false,
+          "name": "CAN电机温度(示例)",
+          "unit": "°C",
+          "min": -20,
+          "max": 150,
+          "fmt": "{:.1f}"
+        }
+      ]
+    }
+  ]
+}
