@@ -81,9 +81,6 @@ _DEVICE_FIELDS = {f.name for f in fields(Device)}   # 设备字段名集合（�
 
 def load_devices(json_path):
     # 只认设备分组写法 {"devices": [ {..., "signals": [ {...} ]} ]}
-    if not os.path.exists(json_path):
-        raise FileNotFoundError("配置文件不存在: " + json_path)
-
     with open(json_path, "r", encoding="utf-8") as f:
         cfg = json.load(f)
 
