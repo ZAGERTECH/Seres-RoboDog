@@ -19,12 +19,13 @@
 #   enabled 是普通数据（null=待定 / true=启用 / false=停用），
 #   加载不跳过任何信号 —— 要不要采集由驱动自己读这一列决定。
 #
-#   ai提示词：不再使用datahub这个类。读json初始化完成后，留在全局空间的应该是一个dataclass Device类的列表。
-#   ai模型：Hy4 preview——20261029-14:25
+#   ai提示词：这个项目本身就会有一堆读/写线程竞争，天然适合读写锁。那个“读读共享、读写互斥、写写互斥”的读写锁可以考虑下第三方库 readerwriterlock这个方案。另外，使用的线程一定要确保上锁后的操作尽可能地快，不要长时间占用！千万是不要占着锁，去执行I/O操作。
+#   ai模型：kimi-k3——20261102-15:30
 import json
 import os
-import threading
 from dataclasses import dataclass, field, fields
+
+from readerwriterlock import rwlock
 
 
 # ============================================================
@@ -132,22 +133,40 @@ def load_devices(json_path):
 # ============================================================
 
 _DEVICES = []                                   # list[Device]
-_LOCK = threading.Lock()                        # 驱动线程写、界面线程读，共用一把锁
+
+# ---------- 读写锁（读读共享 / 读写互斥 / 写写互斥）----------
+#   写：HAL 驱动线程每 0.5s 写一批 value/ts，操作极短
+#   读：将来 UI 刷新、CSV 落盘、日志，可能高频、多个来源同时读
+# 选 RWLockWrite（写优先）：一旦有写者在排队，新来的读者先等一等，
+#   保证温度数据"及时更新"，读者最多等一次微秒级的写。
+#   另外两个选项：RWLockRead(读优先)——读者多时写者可能永远等不到，
+#   本项目绝对不能用；RWLockFair(公平)——先来后到，可备选。
+_RWLOCK = rwlock.RWLockWrite()
+_RLOCK = _RWLOCK.gen_rlock()                    # 读锁句柄（可重复使用）
+_WLOCK = _RWLOCK.gen_wlock()                    # 写锁句柄（可重复使用）
+#
+# 两条铁律：
+#   1. 锁内只放内存操作（赋值/浅拷贝），快进快出
+#   2. 锁内绝不做 I/O（文件、串口、网络）——I/O 先做完，再进锁写结果
+# -------------------------------------------------------------
 
 
 def init_devices(json_path):
     # 启动时调一次：读 JSON → list[Device] 存进全局，不启动任何线程
+    # load_devices 里有文件 I/O，必须在锁外做完；锁内只"换引用"（一条赋值）
+    devices = load_devices(json_path)
     global _DEVICES
-    with _LOCK:
-        _DEVICES = load_devices(json_path)
-    return _DEVICES
+    with _WLOCK:
+        _DEVICES = devices
+    return devices
 
 
 def get_devices():
     # 取全局的 Device 列表（拿到的是本体，改它 = 改全局变量）
-    if not _DEVICES:
-        raise RuntimeError("未初始化，请先调用 init_devices(配置文件路径)")
-    return _DEVICES
+    with _RLOCK:
+        if not _DEVICES:
+            raise RuntimeError("未初始化，请先调用 init_devices(配置文件路径)")
+        return _DEVICES
 
 # ---------------- 读（UI / BLL / CSV 调用）----------------
 
