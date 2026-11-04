@@ -2,7 +2,7 @@ import socket
 import datetime
 import threading
 
-def open_udp(host="0.0.0.0", port=8080, timeout=3.0):
+def HAL_UDP_Open(host="0.0.0.0", port=8080, timeout=3.0):
     if type(port) is not int or not 1 <= port <= 65535:
         raise ValueError("端口必须是 1～65535 的整数")
     if timeout <= 0:
@@ -17,7 +17,7 @@ def open_udp(host="0.0.0.0", port=8080, timeout=3.0):
         raise
     return sock
 
-def receive_data(sock, stop_event):
+def HAL_UDP_Receive_Data(sock, stop_event):
     try:
         while not stop_event.is_set():
             try:
@@ -52,11 +52,11 @@ def main():
     receiver_thread = None
     stop_event = threading.Event()
     try:
-        sock = open_udp(host="0.0.0.0", port=8080,timeout=3.0)
+        sock = HAL_UDP_Open(host="0.0.0.0", port=8080,timeout=3.0)
         host, port = sock.getsockname()
         print(f"UDP 已打开，绑定 {host}:{port}")
         receiver_thread = threading.Thread(
-            target = receive_data,
+            target = HAL_UDP_Receive_Data,
             args = (sock,stop_event),
             daemon = False
         )

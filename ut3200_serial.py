@@ -4,6 +4,7 @@ import serial
 import serial.tools.list_ports   
 import threading
 
+
 CONFIG = {
 "port":"auto",
 "baudrate":9600,
@@ -25,7 +26,7 @@ CONFIG_FIND = {
 
 OPEN_CIRCUIT_VALUE = 100000
 #自动查询设备
-def find_device():
+def HAL_UT3200_FindDevice():
     ports = serial.tools.list_ports.comports()
     tries = []
     if not ports:
@@ -61,7 +62,7 @@ def find_device():
     return None
 
 #打开串口
-def open_port():
+def HAL_UT3200_Open_Port():
     try:
         ser = serial.Serial(port=CONFIG["port"],                 #创建一个串口对象，打开电脑上的串口
                             baudrate=CONFIG["baudrate"],
@@ -76,13 +77,13 @@ def open_port():
         return None
 
 #发送SCPI指令
-def send_cmd(ser,cmd):
+def HAL_UT3200_Snd_Cmd(ser,cmd):
     data = (cmd + "\n").encode("ascii")    
     ser.write(data)                          #ser.write()方法发送字节数据
     print(f'已发送指令：{cmd}')
     pass
 
-def read_response(ser):
+def HAL_UT3200_Read_Response(ser):
     buffer = bytearray()
     while True:
         byte = ser.read(1)
@@ -96,18 +97,18 @@ def read_response(ser):
     return buffer.decode("ascii", errors="replace").strip()
 
 #发送一次指令，就回复数据，并处理超时情况。要把发送和接收放在这里，方便调用
-def query(ser,cmd):
+def HAL_UT3200_Query(ser,cmd):
     ser.reset_input_buffer()
-    send_cmd(ser,cmd)
-    reply = read_response(ser)
+    HAL_UT3200_Snd_Cmd(ser,cmd)
+    reply = HAL_UT3200_Read_Response(ser)
     if not reply:
         print(f'超时{ser.timeout}秒：设备未返回数据')
         return None
     return reply
 
    #fetch_temperature()函数用于获取温度数据，返回值为浮点数
-def fetch_temperatures(ser):
-    reply = query(ser, "FETCH?")
+def HAL_UT3200_Fetch_Temperatures(ser):
+    reply = HAL_UT3200_Query(ser, "FETCH?")
     if not reply:
         print(f'超时{ser.timeout}秒')
         return None
@@ -124,7 +125,7 @@ def fetch_temperatures(ser):
     return values
 
 #设置操作指令，然后一问一答,只在串口成功打开后执行一次
-def setup_instruments(ser):
+def HAL_SetUp_Instruments(ser):
     """
     MEAS:MODEL tc-k  -> 设置传感器为 K 型热电偶
     MEAS:RATE slow   -> 采样速率:slow 慢 / fast 快
@@ -132,52 +133,61 @@ def setup_instruments(ser):
     """
     print("-" * 50)
     print("配置仪器(K 型热电偶 + 采样速率）...")
-    query(ser, f"MEAS:MODEL {CONFIG['type']}")   # 设置传感器类型
-    query(ser, "MEAS:MODEL?")                    # 读回来确认一下
-    query(ser, "MEAS:RATE fast")                 # 快速模式
-    query(ser, "MEAS:RATE?")                     # 确认设置成功
-    query(ser, "MEAS:START on")                  # 启动采样
+    HAL_UT3200_Query(ser, f"MEAS:MODEL {CONFIG['type']}")   # 设置传感器类型
+    HAL_UT3200_Query(ser, "MEAS:MODEL?")                    # 读回来确认一下
+    HAL_UT3200_Query(ser, "MEAS:RATE fast")                 # 快速模式
+    HAL_UT3200_Query(ser, "MEAS:RATE?")                     # 确认设置成功
+    HAL_UT3200_Query(ser, "MEAS:START on")                  # 启动采样
     print("[OK] 仪器配置完成，开始采样。\n")
 
 #创建初始化设备函数
-def init_device():
+def HAL_Init_Device():
     if CONFIG["port"] == "auto":
-        found = find_device()
+        found = HAL_UT3200_FindDevice()
         if found is None:
             print("[失败] 未找到仪器，程序退出。")   
             return None
         CONFIG["port"] = found    
-    ser = open_port()
+    ser = HAL_UT3200_Open_Port()
     if ser is None:                 
         return None
-    if not query(ser, "*IDN?"):      
+    if not HAL_UT3200_Query(ser, "*IDN?"):
         print("[失败] 无法和仪器通讯，程序退出。")
         ser.close()
         return None
-    setup_instruments(ser)          
+    HAL_SetUp_Instruments(ser)
     return ser
 
 #创建采集函数
-def collect_work(ser,stop_event):
-        print("开始自动采集")
-        try:
-            while not stop_event.is_set():
-                if stop_event.wait(CONFIG["interval"]):
-                   break
-                values = fetch_temperatures(ser)
-                if values:
-                  print([f"{v:.2f}" for v in values])
-        except serial.SerialException as e:
-            print(f"串口异常: {e}")
-            stop_event.set()
+def HAL_UT3200_CollectTempData_PeriodThread(ser,stop_event):
+    print("开始自动采集")
+    interval =float(CONFIG["interval"])
+    next_t = time.monotonic()
+    try:
+         while not stop_event.is_set():
+            next_t += interval
+            values = HAL_UT3200_Fetch_Temperatures(ser)
+            if values:
+                print([f"{v:.2f}" for v in values])
+            delay = next_t - time.monotonic()
+            if delay > 0:
+                 if stop_event.wait(delay):
+                    break
+            else:
+                next_t = time.monotonic()
+    except serial.SerialException as e:
+         print(f"串口异常: {e}")
+         stop_event.set()
 
 #调用主函数
 def main():
-    ser = init_device()
+    ser = HAL_Init_Device()
     if ser == None:
         return
     stop_event = threading.Event()
-    worker = threading.Thread(target=collect_work, args=(ser, stop_event),daemon=True)
+    worker = threading.Thread(target=HAL_UT3200_CollectTempData_PeriodThread,
+                              args=(ser, stop_event),
+                              daemon=True)
     worker.start()
     try:
          input("按回车键停止采集\n")
