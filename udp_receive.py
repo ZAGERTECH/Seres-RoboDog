@@ -17,7 +17,7 @@ def HAL_UDP_Open(host="0.0.0.0", port=8080, timeout=3.0):
         raise
     return sock
 
-def HAL_UDP_Receive_Data(sock, stop_event):
+def HAL_UDP_Receive_Data_Thread(sock, stop_event):
     try:
         while not stop_event.is_set():
             try:
@@ -56,7 +56,7 @@ def main():
         host, port = sock.getsockname()
         print(f"UDP 已打开，绑定 {host}:{port}")
         receiver_thread = threading.Thread(
-            target = HAL_UDP_Receive_Data,
+            target = HAL_UDP_Receive_Data_Thread,
             args = (sock,stop_event),
             daemon = False
         )
