@@ -62,7 +62,7 @@ def HAL_UT3200_FindDevice():
     return None
 
 #打开串口
-def HAL_UT3200_Open_Port():
+def HAL_UT3200_OpenPort():
     try:
         ser = serial.Serial(port=CONFIG["port"],                 #创建一个串口对象，打开电脑上的串口
                             baudrate=CONFIG["baudrate"],
@@ -77,13 +77,13 @@ def HAL_UT3200_Open_Port():
         return None
 
 #发送SCPI指令
-def HAL_UT3200_Snd_Cmd(ser,cmd):
+def HAL_UT3200_SndCmd(ser,cmd):
     data = (cmd + "\n").encode("ascii")    
     ser.write(data)                          #ser.write()方法发送字节数据
     print(f'已发送指令：{cmd}')
     pass
 
-def HAL_UT3200_Read_Response(ser):
+def HAL_UT3200_ReadResponse(ser):
     buffer = bytearray()
     while True:
         byte = ser.read(1)
@@ -99,15 +99,15 @@ def HAL_UT3200_Read_Response(ser):
 #发送一次指令，就回复数据，并处理超时情况。要把发送和接收放在这里，方便调用
 def HAL_UT3200_Query(ser,cmd):
     ser.reset_input_buffer()
-    HAL_UT3200_Snd_Cmd(ser,cmd)
-    reply = HAL_UT3200_Read_Response(ser)
+    HAL_UT3200_SndCmd(ser,cmd)
+    reply = HAL_UT3200_ReadResponse(ser)
     if not reply:
         print(f'超时{ser.timeout}秒：设备未返回数据')
         return None
     return reply
 
    #fetch_temperature()函数用于获取温度数据，返回值为浮点数
-def HAL_UT3200_Fetch_Temperatures(ser):
+def HAL_UT3200_FetchTemperatures(ser):
     reply = HAL_UT3200_Query(ser, "FETCH?")
     if not reply:
         print(f'超时{ser.timeout}秒')
@@ -125,7 +125,7 @@ def HAL_UT3200_Fetch_Temperatures(ser):
     return values
 
 #设置操作指令，然后一问一答,只在串口成功打开后执行一次
-def HAL_SetUp_Instruments(ser):
+def HAL_SetUpInstruments(ser):
     """
     MEAS:MODEL tc-k  -> 设置传感器为 K 型热电偶
     MEAS:RATE slow   -> 采样速率:slow 慢 / fast 快
@@ -141,21 +141,21 @@ def HAL_SetUp_Instruments(ser):
     print("[OK] 仪器配置完成，开始采样。\n")
 
 #创建初始化设备函数
-def HAL_Init_Device():
+def HAL_InitDevice():
     if CONFIG["port"] == "auto":
         found = HAL_UT3200_FindDevice()
         if found is None:
             print("[失败] 未找到仪器，程序退出。")   
             return None
         CONFIG["port"] = found    
-    ser = HAL_UT3200_Open_Port()
+    ser = HAL_UT3200_OpenPort()
     if ser is None:                 
         return None
     if not HAL_UT3200_Query(ser, "*IDN?"):
         print("[失败] 无法和仪器通讯，程序退出。")
         ser.close()
         return None
-    HAL_SetUp_Instruments(ser)
+    HAL_SetUpInstruments(ser)
     return ser
 
 #创建采集函数
@@ -166,7 +166,7 @@ def HAL_UT3200_CollectTempData_PeriodThread(ser,stop_event):
     try:
          while not stop_event.is_set():
             next_t += interval
-            values = HAL_UT3200_Fetch_Temperatures(ser)
+            values = HAL_UT3200_FetchTemperatures(ser)
             if values:
                 print([f"{v:.2f}" for v in values])
             delay = next_t - time.monotonic()
@@ -181,7 +181,7 @@ def HAL_UT3200_CollectTempData_PeriodThread(ser,stop_event):
 
 #调用主函数
 def main():
-    ser = HAL_Init_Device()
+    ser = HAL_InitDevice()
     if ser == None:
         return
     stop_event = threading.Event()
