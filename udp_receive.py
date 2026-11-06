@@ -2,7 +2,7 @@ import socket
 import datetime
 import threading
 
-def HAL_DogOpen(host="0.0.0.0", port=8080, timeout=3.0):
+def HAL_Dog_Open(host="0.0.0.0", port=8080, timeout=3.0):
     if type(port) is not int or not 1 <= port <= 65535:
         raise ValueError("端口必须是 1～65535 的整数")
     if timeout <= 0:
@@ -17,7 +17,7 @@ def HAL_DogOpen(host="0.0.0.0", port=8080, timeout=3.0):
         raise
     return sock
 
-def HAL_DogReceiveData_Thread(sock, stop_event):
+def HAL_Dog_ReceiveData_Thread(sock, stop_event):
     try:
         while not stop_event.is_set():
             try:
