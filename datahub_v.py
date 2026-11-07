@@ -18,14 +18,14 @@
 #   不会出现"JSON 里明明写了，界面上却没有"这种查不出来的问题。
 #   enabled 是普通数据（null=待定 / true=启用 / false=停用），
 #   加载不跳过任何信号 —— 要不要采集由驱动自己读这一列决定。
-#
-#   ai提示词：这个项目本身就会有一堆读/写线程竞争，天然适合读写锁。那个“读读共享、读写互斥、写写互斥”的读写锁可以考虑下第三方库 readerwriterlock这个方案。另外，使用的线程一定要确保上锁后的操作尽可能地快，不要长时间占用！千万是不要占着锁，去执行I/O操作。
-#   ai模型：kimi-k3——20261102-15:30
 import json
-import os
+import threading
 from dataclasses import dataclass, field, fields
 
 from readerwriterlock import rwlock
+
+import ut3200_serial
+import udp_receive
 
 
 # ============================================================
@@ -168,21 +168,169 @@ def BLL_JSON_GetDevices():
             raise RuntimeError("未初始化，请先调用 BLL_JSON_InitDevices(配置文件路径)")
         return _DEVICES
 
-# ---------------- 读（UI / BLL / CSV 调用）----------------
 
-def BLL_JSON_SignalCount(devices):
-    return sum(len(d.signals) for d in devices)
+# ============================================================
+# 四、BLL 层线程编排（初始化 / 创建 / 停止）
+# ============================================================
+#
+# 分工说明：
+#   - HAL 层（ut3200_serial.py / udp_receive.py）提供线程"工作函数"
+#     （线程 target 指向的循环函数）
+#   - BLL 层（本文件）提供"初始化 / 启动 / 停止"三个封装：
+#       BLL_All_InitSystem()        —— 统一初始化 JSON + 两个硬件
+#       BLL_All_StartThreads_Thread —— 一次性创建并启动所有采集线程
+#       BLL_Thread_StopAll()        —— 统一停止所有线程 + 关硬件
+#   - main（__main__ 段）只负责按顺序调用上面三个封装 + 等退出信号
+#
+# 停止机制：
+#   全局用一个 threading.Event —— BLL_ThreadStopEvent_Flag
+#   所有线程的循环都检查这个 Event：is_set() 为真就退出
+#   main 退出时调 BLL_Thread_StopAll()：set() 通知 + join() 等待 + 关硬件
+# -----------------------------------------------------------
 
-# ===================== 展示 =====================
+# 全局线程停止标志（threading.Event，不是普通 bool）
+#   为什么用 Event 而不是 bool 变量：
+#     1. Event 内部有锁，多线程 set/is_set 不会竞争出错
+#     2. Event.wait(timeout) 能同时实现"定时等待"和"检查退出"
+#        （现有 HAL 工作函数已经在用 stop_event.wait(delay) 做定时+退出）
+#   所有线程检查的都是这同一个 Event。
+BLL_ThreadStopEvent_Flag = threading.Event()
+
+
+def BLL_All_InitSystem(json_path):
+    # 统一初始化：JSON + UT3200 串口 + UDP socket
+    #   全部成功 → 返回 (devices, ser, sock)
+    #   任一失败 → 清理已初始化的资源，返回 (None, None, None)
+    # 原则：初始化失败则线程一律不启动（由 main 判断返回值决定）
+    #       不会出现"UT3200 开了、UDP 没开、线程只跑一半"的半启动状态
+
+    # ---- 1. JSON ----
+    try:
+        devices = BLL_JSON_InitDevices(json_path)
+    except Exception as e:
+        print("[BLL] JSON 初始化失败：%s" % e)
+        return None, None, None
+    print("[BLL] JSON 初始化成功")
+    # ---- 2. UT3200 串口 ----
+    try:
+        ser = ut3200_serial.HAL_InitDevice()
+    except Exception as e:
+        print("[BLL] UT3200 初始化异常：%s" % e)
+        return None, None, None
+    if ser is None:
+        print("[BLL] UT3200 未找到仪器")
+        return None, None, None
+    print("[BLL] UT3200 初始化成功")
+    # ---- 3. UDP socket ----
+    try:
+        sock = udp_receive.HAL_Dog_Open(host="0.0.0.0", port=8080, timeout=3.0)
+    except Exception as e:
+        print("[BLL] UDP 初始化异常：%s" % e)
+        ser.close()                                  # 回滚：关掉已开的串口
+        print("[BLL] 已回滚关闭 UT3200 串口")
+        return None, None, None
+    print("[BLL] UDP 初始化成功，绑定 %s:%d"
+          % (sock.getsockname()[0], sock.getsockname()[1]))
+
+    return devices, ser, sock
+
+def BLL_All_StartThreads_Thread(ser, sock):
+    # 一次性创建并启动所有采集线程
+    #   ser / sock：已初始化的硬件句柄（由 BLL_All_InitSystem 返回）
+    #   返回：list[Thread]，供 BLL_Thread_StopAll 使用
+    #
+    # 调用前提：BLL_All_InitSystem 已全部成功，ser / sock 都不是 None
+    #   target 都指向 HAL 层的工作函数，BLL 只管"建线程 + start"
+    threads = []
+
+    t_ut = threading.Thread(
+        target=ut3200_serial.HAL_UT3200_CollectTempData_Thread,
+        args=(ser, BLL_ThreadStopEvent_Flag),
+        name="UT3200_Collect",
+        daemon=True,
+    )
+    t_ut.start()
+    threads.append(t_ut)
+    print("[BLL] UT3200 采集线程已启动")
+
+    t_dog = threading.Thread(
+        target=udp_receive.HAL_Dog_ReceiveData_Thread,
+        args=(sock, BLL_ThreadStopEvent_Flag),
+        name="Dog_Receive",
+        daemon=True,
+    )
+    t_dog.start()
+    threads.append(t_dog)
+    print("[BLL] UDP 接收线程已启动")
+
+    return threads
+
+
+def BLL_Thread_StopAll(threads, ser=None, sock=None):
+    # 统一停止：通知所有线程退出 → 等待 → 关硬件
+    #   threads：需要 join 的 Thread 列表
+    #   ser / sock：硬件句柄，None 表示没有该设备
+    # 调用时机：main 收到退出信号（input/Ctrl+C）后调
+    print("\n[BLL] 正在停止所有线程...")
+    BLL_ThreadStopEvent_Flag.set()              # 1. 通知所有线程退出
+
+    for t in threads:                           # 2. 等待每个线程结束
+        if t is not None and t.is_alive():
+            t.join(timeout=3.0)                 # 最多等 3s，防止卡死
+            if t.is_alive():
+                print("[BLL] 警告：线程 %s 3s 内未退出" % t.name)
+
+    if ser is not None:                         # 3. 关闭串口
+        try:
+            ser.close()
+            print("[BLL] UT3200 串口已关闭")
+        except Exception as e:
+            print("[BLL] 关串口异常：%s" % e)
+
+    if sock is not None:                        # 4. 关闭 socket
+        try:
+            sock.close()
+            print("[BLL] UDP socket 已关闭")
+        except Exception as e:
+            print("[BLL] 关 socket 异常：%s" % e)
+
+    print("[BLL] 所有线程已停止，硬件已关闭")
+
+
+# ============================================================
+# 五、应用入口（暂放 __main__，后续可以单独放一个main.py）
+# ============================================================
+#
+# main 的职责（编排层逻辑）：
+#   1. BLL_All_InitSystem        —— 统一初始化（JSON + UT3200 + UDP）
+#      失败直接退出，不开任何线程
+#   2. BLL_All_StartThreads_Thread —— 启动所有采集线程
+#   3. 等待退出信号（回车 / Ctrl+C）
+#   4. BLL_Thread_StopAll        —— 统一停止所有线程 + 关硬件
+#
+# 这段也可以拆到独立的 main.py
+# -----------------------------------------------------------
 
 SIGNALS_CONFIG_PATH = "signals_config.json"
 
-if __name__ == "__main__":
-    # 初始化：读 JSON → 全局变量就是一个 Device 列表
-    devices = BLL_JSON_InitDevices(SIGNALS_CONFIG_PATH)
 
-    print("=== 初始化后留在内存里的：list[Device] ===")
-    print("共 %d 个设备、%d 条信号\n" % (len(devices), BLL_JSON_SignalCount(devices)))
-    for d in devices:
-        print("  [%s]  id=%-8s api=%-20s 共 %d 个信号"
-              % (d.name, d.id, d.api, len(d.signals)))
+def main():
+    # ---- 1. 统一初始化（JSON + UT3200 + UDP，全部初始化成功才继续）----
+    devices, ser, sock = BLL_All_InitSystem(SIGNALS_CONFIG_PATH)
+    if devices is None:
+        print("\n[main] 初始化失败，程序退出")
+        return
+    # ---- 2. 启动所有采集线程 ----
+    threads = BLL_All_StartThreads_Thread(ser, sock)
+
+    # ---- 3. 等待退出信号 ----
+    print("\n程序运行中，按回车键停止...")
+    try:
+        input()
+    except KeyboardInterrupt:
+        print("\n[main] 收到中断信号，正在停止采集...")
+    finally:
+        BLL_Thread_StopAll(threads, ser=ser, sock=sock)
+
+if __name__ == "__main__":
+    main()

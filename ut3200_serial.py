@@ -119,7 +119,7 @@ def HAL_InitDevice():
     try:
         ser = HAL_UT3200_FindDevice()           #自动查找，成功时返回已经打开的串口对象
         if ser is None:
-            print("[失败] 未找到仪器，程序退出。")
+            print("[Fail] 未找到仪器，程序退出。")
             return None
         HAL_SetUpInstruments(ser)               #复用已打开的串口
         return ser
@@ -129,9 +129,8 @@ def HAL_InitDevice():
             ser.close()
         return None
 
-#创建采集函数
-def HAL_UT3200_CollectTempData_PeriodThread(ser,stop_event):
-    print("开始自动采集")
+#创建采集函数（线程 target：循环采集温度，直到 stop_event 被设置）
+def HAL_UT3200_CollectTempData_Thread(ser, stop_event):
     interval =float(CONFIG["interval"])
     next_t = time.monotonic()
     try:
@@ -156,7 +155,7 @@ def main():
     if ser == None:
         return
     stop_event = threading.Event()
-    worker = threading.Thread(target=HAL_UT3200_CollectTempData_PeriodThread,
+    worker = threading.Thread(target=HAL_UT3200_CollectTempData_Thread,
                               args=(ser, stop_event),
                               daemon=True)
     worker.start()
