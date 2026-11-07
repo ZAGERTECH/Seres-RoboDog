@@ -52,11 +52,11 @@ def main():
     receiver_thread = None
     stop_event = threading.Event()
     try:
-        sock = HAL_DogOpen(host="0.0.0.0", port=8080,timeout=3.0)
+        sock = HAL_Dog_Open(host="0.0.0.0", port=8080,timeout=3.0)
         host, port = sock.getsockname()
         print(f"UDP 已打开，绑定 {host}:{port}")
         receiver_thread = threading.Thread(
-            target = HAL_DogReceiveData_Thread,
+            target = HAL_Dog_ReceiveData_Thread,
             args = (sock,stop_event),
             daemon = False
         )

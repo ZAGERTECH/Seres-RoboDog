@@ -4,28 +4,18 @@ import serial
 import serial.tools.list_ports   
 import threading
 
-
 CONFIG = {
-"port":"auto",
 "baudrate":9600,
 "bytesize":8,
 "parity":"N",    #校验位
 "stopbits":1,    #停止位
-"timeout":2.0,   #超时时间
+"timeout":0.5,   #超时时间
 "interval":0.5 , #自动发送间隔0.5s"
 "type":"tc-k",    #k型热电偶
 }
 
-CONFIG_FIND = {
-"baudrate":9600,
-"bytesize":8,
-"parity":"N",    
-"stopbits":1,    
-"timeout":1.0,   
-}
-
 OPEN_CIRCUIT_VALUE = 100000
-#自动查询设备
+#自动查询设备,成功返回已打开的串口对象，失败时返回None
 def HAL_UT3200_FindDevice():
     ports = serial.tools.list_ports.comports()
     tries = []
@@ -37,11 +27,11 @@ def HAL_UT3200_FindDevice():
         ser = None                #循环重置，不影响except块的ser.close()，避免未定义错误
         try:
             ser = serial.Serial(port=p.device,                  #创建一个串口对象，打开电脑上的串口
-                            baudrate=CONFIG_FIND["baudrate"],
-                            bytesize=CONFIG_FIND["bytesize"],
-                            parity=CONFIG_FIND["parity"],
-                            stopbits=CONFIG_FIND["stopbits"],
-                            timeout=CONFIG_FIND["timeout"])
+                            baudrate=CONFIG["baudrate"],
+                            bytesize=CONFIG["bytesize"],
+                            parity=CONFIG["parity"],
+                            stopbits=CONFIG["stopbits"],
+                            timeout=CONFIG["timeout"])
             print(f'已检测到串口：{p.device} {p.description}')
             ser.reset_input_buffer()                       # 清缓冲
             ser.write(b"*IDN?\n")                          # 发送查询指令,b"*IDN?\n"是SCPI指令，查询设备信息
@@ -49,8 +39,7 @@ def HAL_UT3200_FindDevice():
             reply = ser.read(256).decode("ascii", errors="replace").strip()
             if  "UT3208+" in reply:
                print(f'已连接到仪器：{p.device}')
-               ser.close()
-               return p.device
+               return ser
             else:
                print(f'串口{p.device}无应答，继续尝试')   
                ser.close()
@@ -60,21 +49,6 @@ def HAL_UT3200_FindDevice():
                   ser.close()
     print(f'串口均已试探，无仪器应答。本次试探 {len(tries)} 个口: {", ".join(tries)}')
     return None
-
-#打开串口
-def HAL_UT3200_OpenPort():
-    try:
-        ser = serial.Serial(port=CONFIG["port"],                 #创建一个串口对象，打开电脑上的串口
-                            baudrate=CONFIG["baudrate"],
-                            bytesize=CONFIG["bytesize"],
-                            parity=CONFIG["parity"],
-                            stopbits=CONFIG["stopbits"],
-                            timeout=CONFIG["timeout"])
-        print(f'串口{CONFIG["port"]}已打开')
-        return ser
-    except Exception as e:
-        print(f'打开串口失败，错误信息：{e}')
-        return None
 
 #发送SCPI指令
 def HAL_UT3200_SndCmd(ser,cmd):
@@ -132,7 +106,6 @@ def HAL_SetUpInstruments(ser):
     MEAS:START on    -> 启动采样
     """
     print("-" * 50)
-    print("配置仪器(K 型热电偶 + 采样速率）...")
     HAL_UT3200_Query(ser, f"MEAS:MODEL {CONFIG['type']}")   # 设置传感器类型
     HAL_UT3200_Query(ser, "MEAS:MODEL?")                    # 读回来确认一下
     HAL_UT3200_Query(ser, "MEAS:RATE fast")                 # 快速模式
@@ -142,21 +115,19 @@ def HAL_SetUpInstruments(ser):
 
 #创建初始化设备函数
 def HAL_InitDevice():
-    if CONFIG["port"] == "auto":
-        found = HAL_UT3200_FindDevice()
-        if found is None:
-            print("[失败] 未找到仪器，程序退出。")   
+    ser = None
+    try:
+        ser = HAL_UT3200_FindDevice()           #自动查找，成功时返回已经打开的串口对象
+        if ser is None:
+            print("[失败] 未找到仪器，程序退出。")
             return None
-        CONFIG["port"] = found    
-    ser = HAL_UT3200_OpenPort()
-    if ser is None:                 
+        HAL_SetUpInstruments(ser)               #复用已打开的串口
+        return ser
+    except Exception as e:
+        print(f"初始化仪器异常：{e}")
+        if ser is not None and ser.is_open:
+            ser.close()
         return None
-    if not HAL_UT3200_Query(ser, "*IDN?"):
-        print("[失败] 无法和仪器通讯，程序退出。")
-        ser.close()
-        return None
-    HAL_SetUpInstruments(ser)
-    return ser
 
 #创建采集函数
 def HAL_UT3200_CollectTempData_PeriodThread(ser,stop_event):
@@ -193,13 +164,13 @@ def main():
          input("按回车键停止采集\n")
     except KeyboardInterrupt:
          print("\n接收到中断信号,正在停止采集")
-    finally:    
+    finally:
          stop_event.set()
          worker.join()
-         ser.close() 
+         ser.close()
     print("采集已停止，串口已关闭。")
      
 if __name__ == "__main__":
     main()
 
-   
+

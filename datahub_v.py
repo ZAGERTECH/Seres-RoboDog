@@ -80,7 +80,7 @@ _DEVICE_FIELDS = {f.name for f in fields(Device)}   # 设备字段名集合（�
 # 二、读 JSON -> list[Device]（初始化时跑一次）
 # ============================================================
 
-def load_devices(json_path):
+def BLL_JSON_LoadDevices(json_path):
     # 只认设备分组写法 {"devices": [ {..., "signals": [ {...} ]} ]}
     with open(json_path, "r", encoding="utf-8") as f:
         cfg = json.load(f)
@@ -151,26 +151,26 @@ _WLOCK = _RWLOCK.gen_wlock()                    # 写锁句柄（可重复使用
 # -------------------------------------------------------------
 
 
-def init_devices(json_path):
+def BLL_JSON_InitDevices(json_path):
     # 启动时调一次：读 JSON → list[Device] 存进全局，不启动任何线程
-    # load_devices 里有文件 I/O，必须在锁外做完；锁内只"换引用"（一条赋值）
-    devices = load_devices(json_path)
+    # BLL_JSON_LoadDevices 里有文件 I/O，必须在锁外做完；锁内只"换引用"（一条赋值）
+    devices = BLL_JSON_LoadDevices(json_path)
     global _DEVICES
     with _WLOCK:
         _DEVICES = devices
     return devices
 
 
-def get_devices():
+def BLL_JSON_GetDevices():
     # 取全局的 Device 列表（拿到的是本体，改它 = 改全局变量）
     with _RLOCK:
         if not _DEVICES:
-            raise RuntimeError("未初始化，请先调用 init_devices(配置文件路径)")
+            raise RuntimeError("未初始化，请先调用 BLL_JSON_InitDevices(配置文件路径)")
         return _DEVICES
 
 # ---------------- 读（UI / BLL / CSV 调用）----------------
 
-def signal_count(devices):
+def BLL_JSON_SignalCount(devices):
     return sum(len(d.signals) for d in devices)
 
 # ===================== 展示 =====================
@@ -179,10 +179,10 @@ SIGNALS_CONFIG_PATH = "signals_config.json"
 
 if __name__ == "__main__":
     # 初始化：读 JSON → 全局变量就是一个 Device 列表
-    devices = init_devices(SIGNALS_CONFIG_PATH)
+    devices = BLL_JSON_InitDevices(SIGNALS_CONFIG_PATH)
 
     print("=== 初始化后留在内存里的：list[Device] ===")
-    print("共 %d 个设备、%d 条信号\n" % (len(devices), signal_count(devices)))
+    print("共 %d 个设备、%d 条信号\n" % (len(devices), BLL_JSON_SignalCount(devices)))
     for d in devices:
         print("  [%s]  id=%-8s api=%-20s 共 %d 个信号"
               % (d.name, d.id, d.api, len(d.signals)))
