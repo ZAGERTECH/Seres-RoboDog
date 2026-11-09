@@ -12,12 +12,15 @@ def HAL_Dog_Open(host="0.0.0.0", port=8080, timeout=3.0):
     try:
         sock.settimeout(timeout)
         sock.bind((host, port))
-    except Exception:
-        sock.close()
+    except BaseException:
+        try:
+            sock.close()
+        except Exception as close_error:
+            print(f"[UDP] 打开失败后关闭 socket 异常：{close_error}")
         raise
     return sock
 
-def HAL_Dog_ReceiveData_Thread(sock, stop_event):
+def HAL_Dog_ReceiveData_Thread(sock, stop_event,dog_signals, data_write):
     try:
         while not stop_event.is_set():
             try:
@@ -27,7 +30,6 @@ def HAL_Dog_ReceiveData_Thread(sock, stop_event):
             except OSError as error:
                 print(f'接受失败，停止接收：{error}')
                 return
-
             if stop_event.is_set():
                 break
 
@@ -42,23 +44,46 @@ def HAL_Dog_ReceiveData_Thread(sock, stop_event):
             # 如果末尾逗号产生了空字段，就删除最后一个空项
             if values_udp and values_udp[-1] == "":
                 values_udp.pop()
+            updates = []
+            udp_index = 0
+            for dog_signal in dog_signals:    #dog_signals包含多个对象，每次取出一个以dog_signal引用
+                if dog_signal.enabled is not False:
+                    if udp_index < len(values_udp):
+                        updates.append  (
+                            (dog_signal,values_udp[udp_index])
+                        )
+                udp_index = udp_index + 1
+            data_write(updates)
             print(f'{timestamp}来自{address}:{values_udp}')
     finally:
         stop_event.set()
         print("接收线程已结束")
 
-def main():
+def HAL_Dog_RunTest():
+    """单独测试 Dog 的采集和 DataHub 写入。"""
+    from datahub_v import BLL_JSON_InitDevices, BLL_DataWrite
+    # 测试入口初始化一次 DataHub
+    json_devices = BLL_JSON_InitDevices("signals_config.json")
+    dog_signals = None
+    for device in json_devices:
+        if device.api == "udp.parse_frame":
+            dog_signals = device.signals
+            break
+
+    if dog_signals is  None:
+        raise ValueError("配置中未找到 udp.parse_frame")
+
     sock = None
     receiver_thread = None
     stop_event = threading.Event()
     try:
-        sock = HAL_Dog_Open(host="0.0.0.0", port=8080,timeout=3.0)
+        sock = HAL_Dog_Open(host="0.0.0.0", port=8080, timeout=3.0)
         host, port = sock.getsockname()
         print(f"UDP 已打开，绑定 {host}:{port}")
         receiver_thread = threading.Thread(
-            target = HAL_Dog_ReceiveData_Thread,
-            args = (sock,stop_event),
-            daemon = False
+            target=HAL_Dog_ReceiveData_Thread,
+            args=(sock, stop_event,dog_signals,BLL_DataWrite),
+            daemon=False
         )
         receiver_thread.start()
         print("线程已启动")
@@ -76,6 +101,9 @@ def main():
         if sock is not None:
             sock.close()
             print("UDP 已关闭")
+
+def main():
+    HAL_Dog_RunTest()
 
 if __name__ == "__main__":
     main()
