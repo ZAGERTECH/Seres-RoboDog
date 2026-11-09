@@ -239,7 +239,7 @@ def BLL_RoboDogDetect(json_path):
 SIGNALS_CONFIG_PATH = "signals_config.json"
 
 def main():
-    BLL_RunSystem(SIGNALS_CONFIG_PATH)
+    BLL_RoboDogDetect(SIGNALS_CONFIG_PATH)
 
 if __name__ == "__main__":
     main()
