@@ -213,7 +213,7 @@ def BLL_Thread_StopAll():
     hal_startup_shutdown.HAL_Shutdown()
     print("[BLL] 所有线程已停止，硬件已关闭")
 
-def BLL_RunSystem(json_path):
+def BLL_RoboDogDetect(json_path):
     """初始化系统，等待停止通知，最后关闭资源。"""
     if hal_startup_shutdown.HAL_HasResources():
         print("[BLL] 系统已启动或上次关闭未完成，拒绝重复启动")
