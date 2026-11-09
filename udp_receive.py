@@ -60,7 +60,7 @@ def HAL_Dog_ReceiveData_Thread(sock, stop_event,dog_signals, data_write):
         print("接收线程已结束")
 
 def HAL_Dog_RunTest():
-    """单独测试 Dog 的采集和 DataHub 写入。"""
+    """单独测试 Dogq 的采集和 DataHub 写入。"""
     from datahub_v import BLL_JSON_InitDevices, BLL_DataWrite
     # 测试入口初始化一次 DataHub
     json_devices = BLL_JSON_InitDevices("signals_config.json")
