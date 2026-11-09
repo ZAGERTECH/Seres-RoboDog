@@ -121,15 +121,36 @@ def HAL_UT3200_SetUpInstruments(ser):
     print("[OK] 仪器配置完成，开始采样。\n")
 
 #创建初始化设备函数
-def HAL_UT3200_InitDevice():
+def HAL_UT3200_InitDevice(snapshot):
+    """初始化配置对应表和仪器，返回串口、对应表。"""
+    routes = None
+    # 初始化时找到本设备，记录启用信号的位置。
+    for device_index, device in enumerate(snapshot["devices"]):
+        if device["api"] != "ut3200.fetch_all":
+            continue
+        routes = []
+        for signal_index, signal in enumerate(device["signals"]):
+            if signal["enabled"] is False:
+                continue
+            ch = signal["ch"]
+            if type(ch) is not int or ch < 1:
+                raise ValueError(
+                    f"UT3200 信号 {signal['id']} 的通道配置无效：{ch!r}"
+                )
+            routes.append((device_index, signal_index, ch - 1))
+        break
+
+    if routes is None:
+        raise ValueError("配置中未找到 ut3200.fetch_all")
+
     ser = None
     try:
         ser = HAL_UT3200_FindDevice()           #自动查找，成功时返回已经打开的串口对象
         if ser is None:
-            print("[Fail] 未找到仪器，程序退出。")
-            return None
+            raise RuntimeError("UT3200 未找到仪器")
+
         HAL_UT3200_SetUpInstruments(ser)               #复用已打开的串口
-        return ser
+        return ser ,routes
     except BaseException:
         # 配置失败或被 Ctrl+C时候异常处理
         if ser is not None:
@@ -141,7 +162,7 @@ def HAL_UT3200_InitDevice():
         raise
 
 #创建采集函数（线程 target：循环采集温度，直到 stop_event 被设置）
-def HAL_UT3200_CollectTempData_Thread(ser, stop_event,ut3200_signals, data_write):
+def HAL_UT3200_CollectTempData_Thread(ser, stop_event,ut3200_routes, data_write_callback):
     try:
         interval = float(CONFIG["interval"])
         next_t = time.monotonic()
@@ -150,17 +171,15 @@ def HAL_UT3200_CollectTempData_Thread(ser, stop_event,ut3200_signals, data_write
             values = HAL_UT3200_FetchTemperatures(ser)
             if values:
                 updates = []
-                #在ut3200_updates 查找enable是否为Flase，若为否，则开始写数据
-                #根据ut3200_signals的id，把数值写进对应的id里
-                for ut3200_updates in ut3200_signals:
-                    if ut3200_updates.enabled is False:
-                        continue
-                    # ch1对应 values[0]，ch2对应 values[1]。
-                    index = ut3200_updates.ch - 1
-                    if 0 <= index < len(values):
-                        updates.append((ut3200_updates,values[index]))
-                data_write(updates)
+
+                for device_index, signal_index, source_index in ut3200_routes:
+                    if source_index < len(values):
+                        updates.append(
+                            (device_index, signal_index, values[source_index])
+                        )
+                data_write_callback(updates)
                 print([f"{v:.2f}" for v in values])
+
             delay = next_t - time.monotonic()
             if delay > 0:
                 if stop_event.wait(delay):
@@ -179,30 +198,22 @@ def HAL_UT3200_CollectTempData_Thread(ser, stop_event,ut3200_signals, data_write
 
 def HAL_UT3200_RunTest():
     """单独测试 UT3200 的采集和 DataHub 写入。"""
-    from datahub_v import BLL_JSON_InitDevices, BLL_DataWrite
+    from BLL_datahub_v import BLL_JSON_InitDevices, BLL_GetDevicesSnapshot,BLL_DataWrite
     # 测试入口初始化一次 DataHub
-    json_devices = BLL_JSON_InitDevices("signals_config.json")
-    # 获取 UT3200 对应的原有信号对象
-    ut3200_signals = None
-    for device in json_devices:
-        if device.api == "ut3200.fetch_all":
-            ut3200_signals = device.signals
-            break
-
-    if ut3200_signals is None:
-        raise ValueError("配置中未找到 ut3200.fetch_all")
+    BLL_JSON_InitDevices("signals_config.json")
+    snapshot = BLL_GetDevicesSnapshot()
 
     ser = None
     worker = None
     stop_event = threading.Event()
     try:
         # 打开串口也放入清理范围
-        ser = HAL_UT3200_InitDevice()
+        ser, ut3200_routes = HAL_UT3200_InitDevice(snapshot)
         if ser is None:
             return
         worker = threading.Thread(
             target=HAL_UT3200_CollectTempData_Thread,
-            args=(ser, stop_event, ut3200_signals, BLL_DataWrite),
+            args=(ser, stop_event, ut3200_routes, BLL_DataWrite),
             daemon=True,
         )
         worker.start()

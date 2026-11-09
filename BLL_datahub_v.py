@@ -21,8 +21,8 @@
 import json
 from dataclasses import dataclass, field, fields,asdict
 from readerwriterlock import rwlock
-import hal_startup_shutdown
-
+import HAL_startup_shutdown
+import threading
 from datetime import datetime
 
 # ============================================================
@@ -130,17 +130,10 @@ def BLL_JSON_LoadDevices(json_path):
 # ============================================================
 
 _DEVICES = []                                   # list[Device]
-
+_DEBUG_THREAD = None
 # ---------- 读写锁（读读共享 / 读写互斥 / 写写互斥）----------
-#   写：HAL 驱动线程每 0.5s 写一批 value/ts，操作极短
-#   读：将来 UI 刷新、CSV 落盘、日志，可能高频、多个来源同时读
 # 选 RWLockWrite（写优先）：一旦有写者在排队，新来的读者先等一等，
-#   保证温度数据"及时更新"，读者最多等一次微秒级的写。
-#   另外两个选项：RWLockRead(读优先)——读者多时写者可能永远等不到，
-#   本项目绝对不能用；RWLockFair(公平)——先来后到，可备选。
-_RWLOCK = rwlock.RWLockWrite()
-_RLOCK = _RWLOCK.gen_rlock()                    # 读锁句柄（可重复使用）
-_WLOCK = _RWLOCK.gen_wlock()                    # 写锁句柄（可重复使用）
+_RWLOCK_DEVICE = rwlock.RWLockWrite()
 #
 # 两条铁律：
 #   1. 锁内只放内存操作（赋值/浅拷贝），快进快出
@@ -152,41 +145,43 @@ def BLL_JSON_InitDevices(json_path):
     # 启动时调一次：读 JSON → list[Device] 存进全局，不启动任何线程
     # BLL_JSON_LoadDevices 里有文件 I/O，必须在锁外做完；锁内只"换引用"（一条赋值）
     # 采集尚未关闭时，禁止替换线程正在使用的数据对象
-    if hal_startup_shutdown.HAL_HasResources():
+    if HAL_startup_shutdown.HAL_HasResources():
         raise RuntimeError("HAL 尚未关闭，不能重新初始化 DataHub")
     
     devices = BLL_JSON_LoadDevices(json_path)
     global _DEVICES
-    with _WLOCK:
+    with _RWLOCK_DEVICE.gen_wlock():
         _DEVICES = devices
-    return devices
 
 
-def BLL_JSON_GetDevices():
-    # 取全局的 Device 列表（拿到的是本体，改它 = 改全局变量）
-    with  _RWLOCK.gen_rlock(): #把原本_RLOCK全局共享的句柄写成其自己用的读锁
+def BLL_GetDevicesSnapshot():
+    """返回独立快照，外部修改快照不会影响内部设备数据。"""
+    with _RWLOCK_DEVICE.gen_rlock():
         if not _DEVICES:
             raise RuntimeError("未初始化，请先调用 BLL_JSON_InitDevices(配置文件路径)")
-        return _DEVICES
+        return {"devices": [asdict(device) for device in _DEVICES]}
 
 #写入接口函数，HAL层数据由此传入
 def BLL_DataWrite(updates):
+    """HAL 提交设备下标、信号下标和值，BLL 统一写入。"""
     if not updates:
-        print("无数据")
         return
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-    with _RWLOCK.gen_wlock():
-        for signal, value in updates:
+    with _RWLOCK_DEVICE.gen_wlock():
+        for device_index, signal_index, value in updates:
+            signal = _DEVICES[device_index].signals[signal_index]
             signal.value = value
             signal.ts = timestamp
-        # 从 DataHub 全局数据结构复制快照,此处验证数值是否正确传输
-        snapshot = {
-            "devices": [asdict(device) for device in _DEVICES]
-        }
-    # 离开 with 的缩进范围时，写锁已经自动释放
-    # 打印放在锁外
-    print("[DataHub] 写入后的数据：")
-    print(json.dumps(snapshot, ensure_ascii=False, indent=2))
+
+def BLL_Debug_PrintDevices_Thread():
+    """每秒读取并打印一次设备快照，收到停止通知后退出。"""
+    while not HAL_startup_shutdown.HAL_WaitForStop(1.0):
+        snapshot = BLL_GetDevicesSnapshot()
+        print(
+            "[BLL] 设备数据：\n"
+            + json.dumps(snapshot, ensure_ascii=False, indent=2)
+        )
+
 
 # ============================================================
 # 四、BLL 层线程编排（初始化 / 创建 / 停止）
@@ -194,38 +189,59 @@ def BLL_DataWrite(updates):
 # BLL 负责初始化 DataHub，并调用 HAL 的启动、关闭接口。
 # 硬件句柄、线程列表和停止标志由 HAL 管理。
 def BLL_All_InitSystem(json_path):
-    # 统一初始化：JSON + UT3200 串口 + UDP socket
-    # ---- 1. JSON ----
+    global _DEBUG_THREAD
     try:
-        devices = BLL_JSON_InitDevices(json_path)
+        BLL_JSON_InitDevices(json_path)
         print("[BLL] JSON 初始化成功")
-    # ---- 2. UT3200 串口 ----
-    # 传入json里的对象和写入函数，再启动 HAL
-        hal_startup_shutdown.HAL_Start(devices,BLL_DataWrite)
-        print("[BLL] HAL 启动成功")
-        return devices
+        snapshot = BLL_GetDevicesSnapshot()
+
+        HAL_startup_shutdown.HAL_Start(snapshot, BLL_DataWrite)
+
+        try:
+            print("[BLL] HAL 启动成功")
+            _DEBUG_THREAD = threading.Thread(
+                target=BLL_Debug_PrintDevices_Thread,
+                name="bll_debug_print",
+                daemon=True,
+            )
+            _DEBUG_THREAD.start()
+        except BaseException:
+            try:
+                BLL_Thread_StopAll()
+            except Exception as cleanup_error:
+                print(f"[BLL] 启动失败后清理未完成：{cleanup_error}")
+            raise
+
+        return True
+
     except Exception as error:
         print("[BLL] 系统初始化失败：%s" % error)
-        return None
+        return False
 
 def BLL_Thread_StopAll():
     # 统一停止：通知所有线程退出 → 等待 → 关硬件
-    hal_startup_shutdown.HAL_Shutdown()
+    global _DEBUG_THREAD
+    try:
+        HAL_startup_shutdown.HAL_Shutdown()
+    finally:
+        if _DEBUG_THREAD is not None:
+            if _DEBUG_THREAD.is_alive():
+                _DEBUG_THREAD.join()
+            _DEBUG_THREAD = None
     print("[BLL] 所有线程已停止，硬件已关闭")
 
 def BLL_RoboDogDetect(json_path):
     """初始化系统，等待停止通知，最后关闭资源。"""
-    if hal_startup_shutdown.HAL_HasResources():
+    if HAL_startup_shutdown.HAL_HasResources():
         print("[BLL] 系统已启动或上次关闭未完成，拒绝重复启动")
         return
     try:
-        devices = BLL_All_InitSystem(json_path)
-        if devices is None:
+        if not BLL_All_InitSystem(json_path) :
             print("[BLL] 初始化失败，程序退出")
             return
         print("\n程序运行中，按 Ctrl+C 停止...")
         # 等待 HAL 的停止通知
-        while not hal_startup_shutdown.HAL_WaitForStop(0.2):
+        while not HAL_startup_shutdown.HAL_WaitForStop(0.2):
             pass
         print("[BLL] 收到 HAL 停止通知，正在关闭系统...")
     except KeyboardInterrupt:
