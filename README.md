@@ -15,7 +15,7 @@ py -3.13 -m venv .venv
 ## 运行
 
 ```powershell
-.\.venv\Scripts\python.exe .\ut3200_serial.py
+.\.venv\Scripts\python.exe .\HAL_ut3200_serial.py
 ```
 
 脚本默认自动扫描串口，并通过 SCPI 指令查找 UT3208+ 仪器。请先连接仪器并确认 Windows 已安装对应的串口驱动。
