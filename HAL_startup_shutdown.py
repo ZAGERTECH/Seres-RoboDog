@@ -51,10 +51,11 @@ def HAL_Start(snapshot,data_write_callback):
             args = (ser,stop_event,ut3200_routes,data_write_callback),
             name = "ut3200_collect",
             daemon = True,)
-        thread_dog =threading.Thread(target = HAL_udp_receive.HAL_Dog_ReceiveData_Thread,
-                                     args = (sock,stop_event,dog_routes,data_write_callback),
-                                     name = "dog_collect",
-                                     daemon = True, )
+        thread_dog =threading.Thread(
+            target = HAL_udp_receive.HAL_Dog_ReceiveData_Thread,
+            args = (sock,stop_event,dog_routes,data_write_callback),
+            name = "dog_collect",
+            daemon = True, )
         for t in (thread_ut3200,thread_dog):
             threads.append(t)
             t.start()
