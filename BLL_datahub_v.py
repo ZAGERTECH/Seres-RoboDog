@@ -79,9 +79,26 @@ _DEVICE_FIELDS = {f.name for f in fields(Device)}   # 设备字段名集合（�
 # ============================================================
 
 def BLL_JSON_LoadDevices(json_path):
-    """从 UTF-8 JSON 文件路径加载 list[Device]，保留设备和信号的配置顺序。
-    缺少 devices、缺少/重复 id 或出现未声明字段时抛出 ValueError。
-    enabled=False 的信号仍保留在列表中，保证路由下标不因停用而变化。
+    """把磁盘上的 JSON 配置文件，解析成内存里的 list[Device]。
+
+    输入：json_path (str)
+        配置文件的路径字符串，例如 "signals_config.json" 或绝对路径。
+        函数内部用它 open + json.load，把文件内容解析成 Python 字典 cfg，
+        再从 cfg["devices"] 逐个搬成 Device / Signal 对象。
+
+    输出：devices (list[Device])
+        加载成功的设备列表，每个 Device 里挂着自己的 signals (list[Signal])。
+        保留 JSON 里的设备和信号配置顺序。
+        要么返回完整、合法的列表，要么中途 raise（不返回半截数据 / None）。
+
+    失败时：raise ValueError（由上层 try/except 接住）
+        - 配置缺 devices 数组
+        - 设备或信号缺 id
+        - 设备 id 重复 / 信号 id 全项目重复
+        - JSON 里出现 Device / Signal 类没声明的字段
+
+    注意：enabled=False 的信号仍保留在列表中，
+          保证路由下标不因停用而变化（要不要采集由驱动自己读这一列决定）。
     """
     # 只认设备分组写法 {"devices": [ {..., "signals": [ {...} ]} ]}
     with open(json_path, "r", encoding="utf-8") as f:
